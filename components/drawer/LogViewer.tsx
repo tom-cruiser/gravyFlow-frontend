@@ -17,6 +17,13 @@ const idleLines: LogLine[] = [
   { text: '[info] connect a node to stream deployment output.' },
 ];
 
+// A freshly-created deployment has no container yet, so the backend upgrades
+// the socket and immediately closes it (surfaces as code 1006). Retry with
+// exponential backoff while the worker finishes building/spawning it.
+const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_BASE_DELAY_MS = 1000;
+const RECONNECT_MAX_DELAY_MS = 8000;
+
 function parseMessage(raw: string): LogLine[] {
   try {
     const parsed = JSON.parse(raw);
@@ -49,8 +56,11 @@ function parseMessage(raw: string): LogLine[] {
 
 export function LogViewer({ deploymentId }: LogViewerProps) {
   const [lines, setLines] = useState<LogLine[]>(idleLines);
-  const [status, setStatus] = useState<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'connecting' | 'reconnecting' | 'open' | 'closed' | 'error'>('idle');
   const logViewportRef = useRef<HTMLDivElement | null>(null);
+  const socketRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<number | null>(null);
+  const attemptRef = useRef(0);
   const accessToken = useAuthStore((s) => s.accessToken);
 
   const socketUrl = useMemo(() => {
@@ -83,43 +93,101 @@ export function LogViewer({ deploymentId }: LogViewerProps) {
       return;
     }
 
-    setLines([{ text: `[connecting] streaming logs for ${deploymentId}...` }]);
-    setStatus('connecting');
+    let disposed = false;
+    attemptRef.current = 0;
 
-    const socket = new WebSocket(socketUrl);
+    const append = (line: LogLine) => setLines((prev) => [...prev, line]);
 
-    socket.onopen = () => {
-      setStatus('open');
-      setLines((prev) => [...prev, { text: '[connected] log stream open.' }]);
-    };
-
-    socket.onmessage = (event) => {
-      const raw = typeof event.data === 'string' ? event.data : '';
-      const incoming = parseMessage(raw);
-      if (incoming.length > 0) {
-        setLines((prev) => [...prev, ...incoming]);
+    const clearReconnectTimer = () => {
+      if (reconnectTimerRef.current !== null) {
+        window.clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
       }
     };
 
-    socket.onerror = () => {
-      setStatus('error');
-      setLines((prev) => [
-        ...prev,
-        { text: '[error] could not connect to log stream. The container may still be starting.', stream: 'stderr' },
-      ]);
-    };
+    const connect = () => {
+      if (disposed) return;
 
-    socket.onclose = (event) => {
-      setStatus('closed');
-      if (event.code !== 1000) {
-        setLines((prev) => [...prev, { text: `[closed] stream ended (code ${event.code}).` }]);
+      const attempt = attemptRef.current;
+      if (attempt === 0) {
+        setLines([{ text: `[connecting] streaming logs for ${deploymentId}...` }]);
+        setStatus('connecting');
       } else {
-        setLines((prev) => [...prev, { text: '[closed] stream ended.' }]);
+        setStatus('reconnecting');
       }
+
+      const socket = new WebSocket(socketUrl);
+      socketRef.current = socket;
+
+      socket.onopen = () => {
+        attemptRef.current = 0; // reset budget once a stream succeeds
+        setStatus('open');
+        append({ text: '[connected] log stream open.' });
+      };
+
+      socket.onmessage = (event) => {
+        const raw = typeof event.data === 'string' ? event.data : '';
+        const incoming = parseMessage(raw);
+        if (incoming.length > 0) {
+          setLines((prev) => [...prev, ...incoming]);
+        }
+      };
+
+      // onerror always fires just before onclose for an abnormal (1006) close;
+      // let onclose own the retry/terminal decision to avoid double-handling.
+      socket.onerror = () => {};
+
+      socket.onclose = (event) => {
+        socketRef.current = null;
+        if (disposed) return;
+
+        // Clean server-initiated close — nothing to retry.
+        if (event.code === 1000) {
+          setStatus('closed');
+          append({ text: '[closed] stream ended.' });
+          return;
+        }
+
+        // Abnormal closure (e.g. 1006 while the container is still booting).
+        if (attemptRef.current < MAX_RECONNECT_ATTEMPTS) {
+          const nextAttempt = attemptRef.current + 1;
+          attemptRef.current = nextAttempt;
+          const delay = Math.min(
+            RECONNECT_BASE_DELAY_MS * 2 ** (nextAttempt - 1),
+            RECONNECT_MAX_DELAY_MS,
+          );
+          setStatus('reconnecting');
+          append({
+            text: `[reconnecting] stream dropped (code ${event.code}). attempt ${nextAttempt}/${MAX_RECONNECT_ATTEMPTS} in ${Math.round(
+              delay / 1000,
+            )}s — container may still be starting.`,
+          });
+          reconnectTimerRef.current = window.setTimeout(connect, delay);
+        } else {
+          setStatus('error');
+          append({
+            text: `[error] could not establish a log stream after ${MAX_RECONNECT_ATTEMPTS} attempts (code ${event.code}). The container may have failed to start.`,
+            stream: 'stderr',
+          });
+        }
+      };
     };
+
+    connect();
 
     return () => {
-      socket.close(1000, 'component unmounted');
+      disposed = true;
+      clearReconnectTimer();
+      const socket = socketRef.current;
+      socketRef.current = null;
+      if (socket) {
+        // Detach handlers so an unmount-triggered close never schedules a retry.
+        socket.onopen = null;
+        socket.onmessage = null;
+        socket.onerror = null;
+        socket.onclose = null;
+        socket.close(1000, 'component unmounted');
+      }
     };
   }, [socketUrl, deploymentId]);
 
@@ -134,7 +202,7 @@ export function LogViewer({ deploymentId }: LogViewerProps) {
   const statusDot =
     status === 'open'
       ? 'bg-emerald-400'
-      : status === 'connecting'
+      : status === 'connecting' || status === 'reconnecting'
         ? 'bg-yellow-400 animate-pulse'
         : status === 'error'
           ? 'bg-rose-500'
