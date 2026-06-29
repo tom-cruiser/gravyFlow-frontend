@@ -1,5 +1,12 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/store/authStore';
+import { toast } from '@/store/toastStore';
+
+const SESSION_EXPIRED_MESSAGE = 'Your session has expired. Please sign in again.';
+
+function notifySessionExpired() {
+  toast.error(SESSION_EXPIRED_MESSAGE, 'Session expired');
+}
 
 const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080/api';
 
@@ -50,6 +57,7 @@ api.interceptors.response.use(
 
     const { refreshToken } = useAuthStore.getState();
     if (!refreshToken) {
+      notifySessionExpired();
       useAuthStore.getState().clearSession();
       return Promise.reject(error);
     }
@@ -78,6 +86,7 @@ api.interceptors.response.use(
             return nextAccessToken;
           })
           .catch((refreshError) => {
+            notifySessionExpired();
             useAuthStore.getState().clearSession();
             throw refreshError;
           })

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { api } from '@/lib/api';
+import { toast } from '@/store/toastStore';
 
 export type NodeType = 'web' | 'db';
 export type NodeStatus = 'RUNNING' | 'BUILDING' | 'FAILED';
@@ -169,11 +170,18 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
   // lightweight polling for near-real-time inventory refresh
   startPollingNodes: (intervalMs = 5000) => {
     let timer: number | null = null;
+    // Throttle: surface one toast per failure streak, not one every interval.
+    let notifiedPollFailure = false;
     const run = async () => {
       try {
         await useCanvasStore.getState().loadNodes();
+        notifiedPollFailure = false;
       } catch (err) {
         console.error('poll loadNodes failed', err);
+        if (!notifiedPollFailure) {
+          notifiedPollFailure = true;
+          toast.error('Lost connection to the control plane. Retrying…', 'Connection lost');
+        }
       }
       timer = window.setTimeout(run, intervalMs) as unknown as number;
     };
