@@ -188,7 +188,7 @@ export function EnvManager({ deploymentId }: EnvManagerProps) {
               onChange={(e) => setDraftKey(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAddRow()}
               placeholder="NEW_SECRET"
-              className="rounded-xl border border-dashed border-zinc-700 bg-zinc-950/80 px-3 py-2 text-sm font-mono text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-sky-500/60"
+              className="min-w-0 rounded-xl border border-dashed border-zinc-700 bg-zinc-950/80 px-3 py-2 text-sm font-mono text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-sky-500/60"
             />
             <input
               value={draftValue}
@@ -196,7 +196,7 @@ export function EnvManager({ deploymentId }: EnvManagerProps) {
               onKeyDown={(e) => e.key === 'Enter' && handleAddRow()}
               placeholder="••••••"
               type="password"
-              className="rounded-xl border border-dashed border-zinc-700 bg-zinc-950/80 px-3 py-2 text-sm font-mono text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-sky-500/60"
+              className="min-w-0 rounded-xl border border-dashed border-zinc-700 bg-zinc-950/80 px-3 py-2 text-sm font-mono text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-sky-500/60"
             />
             <button
               type="button"
@@ -209,12 +209,19 @@ export function EnvManager({ deploymentId }: EnvManagerProps) {
             </button>
           </div>
 
+          {envItems.length === 0 && !loading ? (
+            <div className="px-4 py-6 text-center">
+              <p className="text-sm text-zinc-400">No environment variables yet</p>
+              <p className="mt-1 text-xs text-zinc-500">Add a key and value above, then restart to apply.</p>
+            </div>
+          ) : null}
+
           {envItems.map((item, index) => (
             <div key={`${item.key}-${index}`} className="grid grid-cols-[1.2fr_1.8fr_auto] gap-2 px-4 py-3">
-              <div className="rounded-xl border border-zinc-800 bg-zinc-950/80 px-3 py-2 font-mono text-sm text-zinc-100">
+              <div className="min-w-0 truncate rounded-xl border border-zinc-800 bg-zinc-950/80 px-3 py-2 font-mono text-sm text-zinc-100" title={item.key}>
                 {item.key}
               </div>
-              <div className="rounded-xl border border-zinc-800 bg-zinc-950/80 px-3 py-2 font-mono text-sm text-zinc-100">
+              <div className="min-w-0 truncate rounded-xl border border-zinc-800 bg-zinc-950/80 px-3 py-2 font-mono text-sm text-zinc-100">
                 {maskedValue}
               </div>
               <button

@@ -107,7 +107,7 @@ export function QuotaWidget() {
     <aside className="w-[340px] max-w-[calc(100vw-3rem)] rounded-[1.5rem] border border-zinc-800 bg-zinc-950/90 p-4 text-zinc-100 shadow-[0_20px_80px_rgba(0,0,0,0.35)] backdrop-blur">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.3em] text-zinc-500">QuotaWidget</p>
+          <p className="text-[11px] uppercase tracking-[0.3em] text-zinc-500">Resource Quota</p>
           <h2 className="mt-1 text-lg font-semibold text-zinc-100">{title}</h2>
         </div>
         <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-[11px] font-medium text-zinc-300">

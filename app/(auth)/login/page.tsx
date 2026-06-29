@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -106,10 +107,7 @@ export default function LoginPage() {
               
               {/* Password Input */}
               <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <label htmlFor="password" className="text-xs font-medium text-zinc-400">Password</label>
-                  <a href="#" className="text-xs text-zinc-500 hover:text-sky-400 transition-colors">Forgot?</a>
-                </div>
+                <label htmlFor="password" className="text-xs font-medium text-zinc-400">Password</label>
                 <div className="relative">
                   <input
                     id="password"
@@ -142,9 +140,9 @@ export default function LoginPage() {
                 
                 <p className="text-center text-xs text-zinc-500">
                   Don't have an account?{' '}
-                  <a href="/register" className="font-medium text-zinc-300 hover:text-sky-400 transition-colors underline underline-offset-4">
+                  <Link href="/register" className="font-medium text-zinc-300 hover:text-sky-400 transition-colors underline underline-offset-4">
                     Create one here
-                  </a>
+                  </Link>
                 </p>
               </div>
             </form>

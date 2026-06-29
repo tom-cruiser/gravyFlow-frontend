@@ -8,6 +8,17 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: [
+          'var(--font-inter)',
+          'ui-sans-serif',
+          'system-ui',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'Segoe UI',
+          'sans-serif',
+        ],
+      },
       boxShadow: {
         glow: '0 0 0 1px rgba(63, 63, 70, 0.6), 0 20px 60px rgba(0, 0, 0, 0.45)',
       },

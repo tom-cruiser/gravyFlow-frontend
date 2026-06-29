@@ -31,7 +31,7 @@ export function RightDrawer({ open }: RightDrawerProps) {
 
   return (
     <aside
-      className={`fixed right-0 top-0 z-30 flex h-screen w-[420px] max-w-[90vw] transform border-l border-zinc-800 bg-zinc-950/95 text-zinc-100 shadow-[ -40px_0_80px_rgba(0,0,0,0.45)] backdrop-blur transition-transform duration-300 ${
+      className={`fixed right-0 top-0 z-30 flex h-screen w-[420px] max-w-[90vw] transform border-l border-zinc-800 bg-zinc-950/95 text-zinc-100 shadow-[-40px_0_80px_rgba(0,0,0,0.45)] backdrop-blur transition-transform duration-300 ${
         open ? 'translate-x-0' : 'translate-x-full'
       }`}
     >

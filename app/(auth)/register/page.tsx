@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -145,9 +146,9 @@ export default function RegisterPage() {
                 
                 <p className="text-center text-xs text-zinc-500">
                   Already have an account?{' '}
-                  <a href="/login" className="font-medium text-zinc-300 hover:text-sky-400 transition-colors underline underline-offset-4">
+                  <Link href="/login" className="font-medium text-zinc-300 hover:text-sky-400 transition-colors underline underline-offset-4">
                     Sign in instead
-                  </a>
+                  </Link>
                 </p>
               </div>
             </form>
