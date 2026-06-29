@@ -1,0 +1,176 @@
+import { create } from 'zustand';
+import { api } from '@/lib/api';
+
+export type NodeType = 'web' | 'db';
+export type NodeStatus = 'RUNNING' | 'BUILDING' | 'FAILED';
+
+export type CanvasNode = {
+  id: string;
+  name: string;
+  type: NodeType;
+  status: NodeStatus;
+  positionX: number;
+  positionY: number;
+  internalPort: number;
+  repo: string;
+};
+
+// Types matching Go backend shapes (cmd/api/db.go)
+export type DeploymentRecordDTO = {
+  DeploymentID: string;
+  ProjectID: string;
+  AppName: string;
+  SourceRepoURL: string;
+  AppPath: string;
+  PortMap: string;
+  ImageName: string;
+  ContainerID: string;
+  ContainerName: string;
+  Status: string;
+  StatusMessage: string;
+  CreatedAt: string | null;
+  UpdatedAt: string | null;
+};
+
+export type AppRecordDTO = {
+  id?: string;
+  name?: string;
+  repo?: string;
+  status?: string;
+  portMap?: string;
+  layout?: { x?: number; y?: number } | null;
+};
+
+type CanvasTransform = {
+  viewportX: number;
+  viewportY: number;
+  scale: number;
+};
+
+type CanvasStore = {
+  nodes: CanvasNode[];
+  selectedNodeId: string | null;
+  canvasTransform: CanvasTransform;
+  loading: boolean;
+  error: string | null;
+  setNodes: (nodes: CanvasNode[]) => void;
+  setSelectedNodeId: (nodeId: string | null) => void;
+  setCanvasTransform: (transform: CanvasTransform) => void;
+  addNode: (node: CanvasNode) => void;
+  updateNodePosition: (id: string, x: number, y: number) => void;
+  loadNodes: () => Promise<void>;
+  fetchCanvasData: () => Promise<void>;
+  startPollingNodes: (intervalMs?: number) => void;
+  stopPollingNodes: () => void;
+};
+
+const initialNodes: CanvasNode[] = [];
+
+function parsePortMap(portMap: string | undefined | null): number {
+  if (!portMap) return 8080;
+  const m = String(portMap).match(/(\d+)(?::\d+)?/);
+  if (m) return Number(m[1]);
+  return 8080;
+}
+
+function mapDeploymentToCanvasNode(item: DeploymentRecordDTO, idx: number): CanvasNode {
+  const defaultX = 220 + (idx % 3) * 360;
+  const defaultY = 180 + Math.floor(idx / 3) * 240;
+
+  return {
+    id: String(item.DeploymentID),
+    name: item.AppName || 'unnamed',
+    type: String(item.AppName || '').toLowerCase().includes('postgres') ? 'db' : 'web',
+    status: (String(item.Status || 'RUNNING').toUpperCase() as NodeStatus) || 'RUNNING',
+    positionX: defaultX,
+    positionY: defaultY,
+    internalPort: parsePortMap(item.PortMap),
+    repo: item.SourceRepoURL || '',
+  };
+}
+
+function mapAppToCanvasNode(item: AppRecordDTO, idx: number): CanvasNode {
+  const defaultX = 220 + (idx % 3) * 360;
+  const defaultY = 180 + Math.floor(idx / 3) * 240;
+  return {
+    id: String(item.id ?? `app-${idx}`),
+    name: item.name ?? 'unnamed',
+    type: String(item.name || '').toLowerCase().includes('postgres') ? 'db' : 'web',
+    status: (String(item.status || 'RUNNING').toUpperCase() as NodeStatus) || 'RUNNING',
+    positionX: Number(item.layout?.x ?? defaultX),
+    positionY: Number(item.layout?.y ?? defaultY),
+    internalPort: parsePortMap(item.portMap ?? undefined),
+    repo: item.repo ?? '',
+  };
+}
+
+export const useCanvasStore = create<CanvasStore>((set) => ({
+  nodes: initialNodes,
+  loading: false,
+  error: null,
+  selectedNodeId: null,
+  canvasTransform: {
+    viewportX: 80,
+    viewportY: 100,
+    scale: 1,
+  },
+  setNodes: (nodes) => set({ nodes }),
+  setSelectedNodeId: (nodeId) => set({ selectedNodeId: nodeId }),
+  setCanvasTransform: (canvasTransform) => set({ canvasTransform }),
+  addNode: (node) =>
+    set((state) => ({
+      nodes: [...state.nodes, node],
+    })),
+  updateNodePosition: (id, x, y) =>
+    set((state) => ({
+      nodes: state.nodes.map((node) => (node.id === id ? { ...node, positionX: x, positionY: y } : node)),
+    })),
+  loadNodes: async () => {
+    const resApps = await api.get('/apps');
+    const payload = resApps.data?.apps ?? resApps.data ?? [];
+
+    const nodes = (Array.isArray(payload) ? payload : []).map((item: any, idx: number) => {
+      // detect DeploymentRecord shape
+      if (item && (item.DeploymentID || item.AppName || item.SourceRepoURL)) {
+        return mapDeploymentToCanvasNode(item as DeploymentRecordDTO, idx);
+      }
+
+      // otherwise assume AppRecord shape
+      return mapAppToCanvasNode(item as AppRecordDTO, idx);
+    });
+
+    set({ nodes });
+  },
+  fetchCanvasData: async () => {
+    set({ loading: true, error: null });
+    try {
+      await useCanvasStore.getState().loadNodes();
+      set({ loading: false });
+    } catch (err: any) {
+      console.error('fetchCanvasData failed', err);
+      set({ loading: false, error: err?.message ? String(err.message) : String(err) });
+    }
+  },
+  // lightweight polling for near-real-time inventory refresh
+  startPollingNodes: (intervalMs = 5000) => {
+    let timer: number | null = null;
+    const run = async () => {
+      try {
+        await useCanvasStore.getState().loadNodes();
+      } catch (err) {
+        console.error('poll loadNodes failed', err);
+      }
+      timer = window.setTimeout(run, intervalMs) as unknown as number;
+    };
+    if ((window as any).__canvas_polling_timer) {
+      window.clearTimeout((window as any).__canvas_polling_timer);
+    }
+    (window as any).__canvas_polling_timer = window.setTimeout(run, 0) as unknown as number;
+  },
+  stopPollingNodes: () => {
+    if ((window as any).__canvas_polling_timer) {
+      window.clearTimeout((window as any).__canvas_polling_timer);
+      (window as any).__canvas_polling_timer = null;
+    }
+  },
+}));
