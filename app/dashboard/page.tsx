@@ -4,6 +4,7 @@ import { GridCanvas } from '@/components/canvas/GridCanvas';
 import { NewServiceButton } from '@/components/canvas/NewServiceButton';
 import { RightDrawer } from '@/components/drawer/RightDrawer';
 import { QuotaWidget } from '@/components/drawer/QuotaWidget';
+import { AccountMenu } from '@/components/auth/AccountMenu';
 import { useCanvasStore } from '@/store/canvasStore';
 
 export default function DashboardPage() {
@@ -22,6 +23,7 @@ export default function DashboardPage() {
         <QuotaWidget />
       </div>
       <NewServiceButton />
+      <AccountMenu />
       <RightDrawer open={drawerOpen} />
     </main>
   );

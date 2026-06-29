@@ -129,7 +129,7 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     const resApps = await api.get('/apps');
     const payload = resApps.data?.apps ?? resApps.data ?? [];
 
-    const nodes = (Array.isArray(payload) ? payload : []).map((item: any, idx: number) => {
+    const incoming = (Array.isArray(payload) ? payload : []).map((item: any, idx: number) => {
       // detect DeploymentRecord shape
       if (item && (item.DeploymentID || item.AppName || item.SourceRepoURL)) {
         return mapDeploymentToCanvasNode(item as DeploymentRecordDTO, idx);
@@ -139,7 +139,22 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
       return mapAppToCanvasNode(item as AppRecordDTO, idx);
     });
 
-    set({ nodes });
+    // Merge backend state into the existing canvas instead of replacing it
+    // wholesale. The mapped nodes carry default grid coordinates, but if we
+    // already track a node we keep its current x/y so polling refreshes
+    // status/metadata without snapping dragged nodes back to the grid.
+    set((state) => {
+      const existingPositions = new Map(
+        state.nodes.map((node) => [node.id, { x: node.positionX, y: node.positionY }]),
+      );
+
+      const nodes = incoming.map((node) => {
+        const existing = existingPositions.get(node.id);
+        return existing ? { ...node, positionX: existing.x, positionY: existing.y } : node;
+      });
+
+      return { nodes };
+    });
   },
   fetchCanvasData: async () => {
     set({ loading: true, error: null });

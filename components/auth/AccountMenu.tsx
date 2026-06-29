@@ -1,0 +1,91 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { LogOut } from 'lucide-react';
+import { useAuthStore } from '@/store/authStore';
+
+export function AccountMenu() {
+  const router = useRouter();
+  const user = useAuthStore((state) => state.user);
+  const hasHydrated = useAuthStore((state) => state.hasHydrated);
+  const clearSession = useAuthStore((state) => state.clearSession);
+
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Dismiss the popover on outside click or Escape.
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePointer = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+
+    window.addEventListener('mousedown', handlePointer);
+    window.addEventListener('keydown', handleKey);
+    return () => {
+      window.removeEventListener('mousedown', handlePointer);
+      window.removeEventListener('keydown', handleKey);
+    };
+  }, [open]);
+
+  // Wait for the persisted session to rehydrate before rendering, and render
+  // nothing when signed out (ProtectedRoute will already be redirecting).
+  if (!hasHydrated || !user) return null;
+
+  const displayName = user.displayName?.trim() || user.email;
+  const initial = (displayName || '?').charAt(0).toUpperCase();
+
+  const handleLogout = () => {
+    setOpen(false);
+    clearSession();
+    router.replace('/login');
+  };
+
+  return (
+    <div ref={containerRef} className="fixed bottom-6 left-6 z-20">
+      {open ? (
+        <div
+          role="menu"
+          aria-label="Account menu"
+          className="mb-2 w-64 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/95 shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur animate-in fade-in slide-in-from-bottom-2 duration-150"
+        >
+          <div className="border-b border-zinc-800 px-4 py-3">
+            <p className="truncate text-sm font-medium text-zinc-100">{user.displayName?.trim() || 'Account'}</p>
+            <p className="truncate text-xs text-zinc-500">{user.email}</p>
+          </div>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={handleLogout}
+            className="flex w-full items-center gap-2.5 px-4 py-3 text-left text-sm font-medium text-rose-300 transition-colors hover:bg-rose-500/10"
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            Log out
+          </button>
+        </div>
+      ) : null}
+
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="inline-flex max-w-[14rem] items-center gap-3 rounded-full border border-zinc-800 bg-zinc-950/90 py-2 pl-2 pr-4 text-left shadow-[0_20px_50px_rgba(0,0,0,0.4)] backdrop-blur transition-colors hover:border-zinc-700"
+      >
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-500/15 text-sm font-semibold text-sky-300">
+          {initial}
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-medium text-zinc-100">{displayName}</span>
+        </span>
+      </button>
+    </div>
+  );
+}

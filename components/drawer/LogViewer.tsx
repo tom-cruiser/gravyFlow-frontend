@@ -55,8 +55,25 @@ export function LogViewer({ deploymentId }: LogViewerProps) {
 
   const socketUrl = useMemo(() => {
     if (!deploymentId || !accessToken) return null;
-    // Pass auth token as query param since WS doesn't support Authorization headers
-    return `ws://localhost:8080/api/apps/${deploymentId}/logs?token=${accessToken}`;
+
+    // Derive the WS endpoint from the same base the REST client uses, instead of
+    // hardcoding the host. Resolve against the current origin so a relative base
+    // (e.g. "/api") works behind a reverse proxy too.
+    const restBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080/api';
+    const origin = typeof window !== 'undefined' ? window.location.origin : undefined;
+    const url = new URL(`${restBase.replace(/\/+$/, '')}/apps/${deploymentId}/logs`, origin);
+
+    // ws ⇄ http, wss ⇄ https. Force wss whenever the page itself is served over
+    // HTTPS, otherwise the browser blocks the insecure socket as mixed content.
+    const secure =
+      url.protocol === 'https:' ||
+      (typeof window !== 'undefined' && window.location.protocol === 'https:');
+    url.protocol = secure ? 'wss:' : 'ws:';
+
+    // Pass auth token as query param since WS doesn't support Authorization headers.
+    url.searchParams.set('token', accessToken);
+
+    return url.toString();
   }, [deploymentId, accessToken]);
 
   useEffect(() => {
