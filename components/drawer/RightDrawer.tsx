@@ -1,14 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Activity, ChevronLeft } from 'lucide-react';
+import { Activity, Database, ChevronLeft, Shield } from 'lucide-react';
 import { useCanvasStore } from '@/store/canvasStore';
+import { EnvManager } from './EnvManager';
 import { LogViewer } from './LogViewer';
-// Temporarily disabled until their backend routes are registered in main.go
-// (no /apps/:id/env or /apps/:id/domains endpoints exist yet).
-// import { Database, Shield } from 'lucide-react';
-// import { EnvManager } from './EnvManager';
-// import { DomainManager } from './DomainManager';
+import { DomainManager } from './DomainManager';
 
 type DrawerTab = 'logs' | 'env' | 'networking';
 
@@ -18,9 +15,8 @@ type RightDrawerProps = {
 
 const tabs: Array<{ id: DrawerTab; label: string; icon: typeof Activity }> = [
   { id: 'logs', label: 'Logs', icon: Activity },
-  // Re-enable once the backend routes ship:
-  // { id: 'env', label: 'Env', icon: Database },
-  // { id: 'networking', label: 'Domains', icon: Shield },
+  { id: 'env', label: 'Env', icon: Database },
+  { id: 'networking', label: 'Domains', icon: Shield },
 ];
 
 export function RightDrawer({ open }: RightDrawerProps) {
@@ -85,9 +81,8 @@ export function RightDrawer({ open }: RightDrawerProps) {
         <div className="min-h-0 flex-1 overflow-hidden px-5 py-4">
           <div className="h-full space-y-4">
             {activeTab === 'logs' ? <LogViewer deploymentId={selectedNodeId} /> : null}
-            {/* Re-enable alongside their tabs once backend routes are registered:
             {activeTab === 'env' ? <EnvManager deploymentId={selectedNodeId} /> : null}
-            {activeTab === 'networking' ? <DomainManager deploymentId={selectedNodeId} /> : null} */}
+            {activeTab === 'networking' ? <DomainManager deploymentId={selectedNodeId} /> : null}
           </div>
         </div>
       </div>
