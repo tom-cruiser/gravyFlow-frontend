@@ -11,7 +11,7 @@ export default function HomePage() {
         </p>
         <Link
           href="/dashboard"
-          className="inline-flex items-center rounded-full border border-zinc-700 bg-zinc-100 px-5 py-2.5 text-sm font-medium text-zinc-950 transition hover:bg-white"
+          className="inline-flex items-center rounded-full border border-sky-400/30 bg-sky-500 px-5 py-2.5 text-sm font-medium text-zinc-950 transition hover:bg-sky-400"
         >
           Enter dashboard
         </Link>

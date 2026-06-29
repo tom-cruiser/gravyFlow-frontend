@@ -13,6 +13,11 @@ const NODE_WIDTH = 260;
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 1.5;
 
+// Connection lines are hidden until the backend models real node-to-node
+// relationships. Today they'd draw every db↔web pair (a cartesian product),
+// which misrepresents the actual topology. Flip to true to restore.
+const SHOW_CONNECTIONS = false;
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -220,11 +225,13 @@ export function GridCanvas() {
             }}
           >
             {/* Connection Layer */}
-            <svg className="pointer-events-none absolute inset-0 overflow-visible h-full w-full">
-              {connectionPaths.map((line) => (
-                <NetworkLine key={line.id} d={line.d} highlighted={line.highlighted} />
-              ))}
-            </svg>
+            {SHOW_CONNECTIONS ? (
+              <svg className="pointer-events-none absolute inset-0 overflow-visible h-full w-full">
+                {connectionPaths.map((line) => (
+                  <NetworkLine key={line.id} d={line.d} highlighted={line.highlighted} />
+                ))}
+              </svg>
+            ) : null}
 
             {/* Nodes Layer */}
             <div className="absolute inset-0 pointer-events-none">

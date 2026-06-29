@@ -116,7 +116,7 @@ export function NewServiceButton() {
       <button
         type="button"
         onClick={openModal}
-        className="fixed bottom-6 left-1/2 z-20 inline-flex -translate-x-1/2 items-center gap-2 rounded-full border border-zinc-700 bg-zinc-100 px-6 py-3 text-sm font-semibold text-zinc-950 shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all hover:bg-white active:scale-[0.98]"
+        className="fixed bottom-6 left-1/2 z-20 inline-flex -translate-x-1/2 items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500 px-6 py-3 text-sm font-semibold text-zinc-950 shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all hover:bg-sky-400 active:scale-[0.98]"
       >
         <Plus className="h-4 w-4 stroke-[3]" />
         {buttonLabel}
@@ -170,6 +170,7 @@ export function NewServiceButton() {
                 </label>
                 <input
                   id="serviceName"
+                  autoFocus
                   value={serviceName}
                   onChange={(event) => setServiceName(event.target.value.toLowerCase().replace(/\s+/g, '-'))}
                   placeholder="payments-api"

@@ -14,11 +14,11 @@ const statusLabels: Record<CanvasNode['status'], string> = {
   FAILED: 'Failed',
 };
 
-const statusResourceMap: Record<CanvasNode['status'], { cpu: string; ram: string }> = {
-  RUNNING: { cpu: '0.25 / 0.50', ram: '128MB' },
-  BUILDING: { cpu: '0.12 / 0.50', ram: '96MB' },
-  FAILED: { cpu: '0.00 / 0.50', ram: '0MB' },
-};
+// Allocation tier mirrors the backend deploy defaults (defaultDeployCPU /
+// defaultDeployMemoryMB). These are the limits a service is provisioned with,
+// not live usage — there is no per-node telemetry endpoint yet.
+const ALLOCATED_VCPU = '0.50';
+const ALLOCATED_MEMORY = '512 MB';
 
 type ServiceNodeProps = {
   node: CanvasNode;
@@ -29,8 +29,7 @@ type ServiceNodeProps = {
 
 export function ServiceNode({ node, selected, onSelect, onPointerDown }: ServiceNodeProps) {
   const Icon = node.type === 'db' ? Database : Globe2;
-  const statusResources = statusResourceMap[node.status];
-  
+
   const isRunning = node.status === 'RUNNING';
   const isBuilding = node.status === 'BUILDING';
   const isFailed = node.status === 'FAILED';
@@ -100,12 +99,12 @@ export function ServiceNode({ node, selected, onSelect, onPointerDown }: Service
         
         <div className="grid grid-cols-2 gap-2.5">
           <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 p-2.5">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Core allocation</p>
-            <p className="mt-1 font-semibold text-zinc-200 tracking-tight">{statusResources.cpu} <span className="text-[10px] font-normal text-zinc-500">CPU</span></p>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">CPU allocation</p>
+            <p className="mt-1 font-semibold text-zinc-200 tracking-tight">{ALLOCATED_VCPU} <span className="text-[10px] font-normal text-zinc-500">vCPU</span></p>
           </div>
           <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 p-2.5">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Memory profile</p>
-            <p className="mt-1 font-semibold text-zinc-200 tracking-tight">{statusResources.ram}</p>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Memory limit</p>
+            <p className="mt-1 font-semibold text-zinc-200 tracking-tight">{ALLOCATED_MEMORY}</p>
           </div>
         </div>
       </div>
