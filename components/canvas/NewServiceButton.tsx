@@ -34,6 +34,8 @@ export function NewServiceButton() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const modalRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const wasOpenRef = useRef(false);
   const user = useAuthStore((state) => state.user);
   const canvasTransform = useCanvasStore((state) => state.canvasTransform);
   const addNode = useCanvasStore((state) => state.addNode);
@@ -54,15 +56,57 @@ export function NewServiceButton() {
     setErrorMessage(null);
   };
 
-  // Keyboard accessibility: Escape key dismisses modal safely
+  // Keyboard accessibility: Escape dismisses, and Tab/Shift+Tab is trapped so
+  // focus cycles within the dialog instead of escaping to the canvas behind it.
   useEffect(() => {
     if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeModal();
+
+    const getFocusable = (): HTMLElement[] => {
+      const root = modalRef.current;
+      if (!root) return [];
+      return Array.from(
+        root.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => el.offsetParent !== null);
     };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+
+      const focusable = getFocusable();
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      const outside = !modalRef.current?.contains(active);
+
+      if (e.shiftKey && (active === first || outside)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (active === last || outside)) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, isSubmitting]);
+
+  // Restore focus to the trigger when the modal closes (open -> closed only, so
+  // it doesn't fire while submitting toggles state).
+  useEffect(() => {
+    if (wasOpenRef.current && !isOpen) {
+      triggerRef.current?.focus();
+    }
+    wasOpenRef.current = isOpen;
+  }, [isOpen]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -114,6 +158,7 @@ export function NewServiceButton() {
     <>
       {/* Primary Floating Action Trigger */}
       <button
+        ref={triggerRef}
         type="button"
         onClick={openModal}
         className="fixed bottom-6 left-1/2 z-20 inline-flex -translate-x-1/2 items-center gap-2 rounded-full border border-sky-400/30 bg-sky-500 px-6 py-3 text-sm font-semibold text-zinc-950 shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all hover:bg-sky-400 active:scale-[0.98]"
@@ -133,13 +178,15 @@ export function NewServiceButton() {
             className="w-full max-w-lg rounded-[2rem] border border-zinc-800 bg-zinc-950/95 p-8 text-zinc-100 shadow-[0_32px_120px_rgba(0,0,0,0.65)] animate-in fade-in zoom-in-95 duration-200"
             role="dialog"
             aria-modal="true"
+            aria-labelledby="new-service-title"
+            aria-describedby="new-service-desc"
           >
             {/* Header Block Container */}
             <div className="mb-6 flex items-start justify-between gap-6">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-sky-400">Dynamic Provisioning</p>
-                <h2 className="mt-1.5 text-xl font-semibold tracking-tight text-zinc-100">Create a new service</h2>
-                <p className="mt-1 text-sm text-zinc-400">Submit metadata parameters to coordinate canvas node deployment profiles.</p>
+                <h2 id="new-service-title" className="mt-1.5 text-xl font-semibold tracking-tight text-zinc-100">Create a new service</h2>
+                <p id="new-service-desc" className="mt-1 text-sm text-zinc-400">Submit metadata parameters to coordinate canvas node deployment profiles.</p>
               </div>
               
               {/* Clean Icon X Button instead of redundant text */}
