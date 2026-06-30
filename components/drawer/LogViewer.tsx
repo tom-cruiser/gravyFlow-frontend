@@ -24,6 +24,33 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_DELAY_MS = 1000;
 const RECONNECT_MAX_DELAY_MS = 8000;
 
+// Decode a base64url JWT segment without external deps (browser-only component).
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  const parts = token.split('.');
+  if (parts.length < 2) return null;
+  try {
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
+}
+
+// True only when we can prove the token is past its exp. Unreadable tokens are
+// treated as "not expired" so we let the server be the source of truth.
+function isAccessTokenExpired(token: string | null): boolean {
+  if (!token) return true;
+  const payload = decodeJwtPayload(token);
+  if (!payload || typeof payload.exp !== 'number') return false;
+  return Date.now() >= payload.exp * 1000;
+}
+
+const SESSION_EXPIRED_LINE: LogLine = {
+  text: '[warn] Session expired — please log in again.',
+  stream: 'stderr',
+};
+
 function parseMessage(raw: string): LogLine[] {
   try {
     const parsed = JSON.parse(raw);
@@ -107,6 +134,16 @@ export function LogViewer({ deploymentId }: LogViewerProps) {
 
     const connect = () => {
       if (disposed) return;
+
+      // Don't throw blind boot-retries at an auth wall. If the token is gone or
+      // demonstrably expired, the WS handshake will be rejected (surfacing as a
+      // generic 1006), so short-circuit with a clear message and stop instead.
+      // Re-checked on every (re)connect so a token expiring mid-backoff is caught.
+      if (isAccessTokenExpired(accessToken)) {
+        setStatus('error');
+        setLines([SESSION_EXPIRED_LINE]);
+        return;
+      }
 
       const attempt = attemptRef.current;
       if (attempt === 0) {
